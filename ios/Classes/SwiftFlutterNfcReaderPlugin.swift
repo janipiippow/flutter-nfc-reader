@@ -79,13 +79,35 @@ extension SwiftFlutterNfcReaderPlugin : NFCNDEFReaderSessionDelegate {
     
     public func readerSession(_ session: NFCNDEFReaderSession, didDetectNDEFs messages: [NFCNDEFMessage]) {
         guard let message = messages.first else { return }
-        guard let payload = message.records.first else { return }
-        guard let payloadContent = String(data: payload.payload, encoding: String.Encoding.utf8) else { return }
         
+        
+        //guard let payload = message.records.first else { return }
+        //guard let payloadContent = String(data: payload.payload, encoding: String.Encoding.utf8) else { return }
+        let payloadContent = formatNDEFMessageToResult(message)
         let data = [kId: "", kContent: payloadContent, kError: "", kStatus: "reading"]
         readResult?(data)
         readResult=nil
         //disableNFC()
+    }
+
+    private func formatNDEFMessageToResult(message: NFCNDEFMessage) -> [String: Any] {
+        var result = [String: Any]()
+        var records = [[String: String]]()
+        if (message != nil) {
+            for record in message.records {
+                var recordMap : [String, String] = [
+                    "payload": record.payload,
+                    "id": record.identifier,
+                    "type": record.type
+                ]
+                records.append(recordMap)
+            }
+            result.updateValue("", forKey: "id")
+            result.updateValue("ndef", forKey: "message_type")
+            result.updateValue("", forKey: "type")
+            result.updateValue(records, forKey: "records")
+        }
+
     }
     
     public func readerSession(_ session: NFCNDEFReaderSession, didInvalidateWithError error: Error) {

@@ -39,16 +39,15 @@ class NDEFMessage implements NFCMessage {
 
   @override
   MessageType get messageType => MessageType.NDEF;
-  
+
   static NDEFMessage fromDataMap(dynamic map) {
     Map<String, dynamic> data = new Map<String, dynamic>.from(map);
     List<dynamic> records = data['records'];
     return NDEFMessage(
-      id: data['id'],
-      type: data['type'],
-      records: records.map((record) => NDEFRecord.fromData(record)).toList()
-    );
-  } 
+        id: data['id'],
+        type: data['type'],
+        records: records.map((record) => NDEFRecord.fromData(record)).toList());
+  }
 }
 
 class NDEFRecord {
@@ -63,11 +62,10 @@ class NDEFRecord {
 
   static NDEFRecord fromData(dynamic data) {
     return NDEFRecord(
-      id: data['id'],
-      type: data['type'],
-      payload: data['payload'],
-      tnf: null
-    );
+        id: data['id'],
+        type: data['type'],
+        payload: data['payload'],
+        tnf: data['tnf']);
   }
 }
 
@@ -119,27 +117,26 @@ class FlutterNfcReader {
   static const stream =
       const EventChannel('it.matteocrippa.flutternfcreader.flutter_nfc_reader');
 
- static Future<NfcData>  stop() async{
+  static Future<NfcData> stop() async {
     final Map data = await _channel.invokeMethod('NfcStop');
     final NfcData result = NfcData.fromMap(data);
 
     return result;
   }
 
-  static Future<NfcData>  read() async{
+  static Future<NfcData> read() async {
     final Map data = await _channel.invokeMethod('NfcRead');
     final NfcData result = NfcData.fromMap(data);
 
     return result;
   }
 
-  static Future<NfcData> write(String path,String label) async {
-    final Map data = await _channel.invokeMethod('NfcWrite',<String,dynamic>{'label':label,'path':path});
+  static Future<NfcData> write(String path, String label) async {
+    final Map data = await _channel.invokeMethod(
+        'NfcWrite', <String, dynamic>{'label': label, 'path': path});
 
     final NfcData result = NfcData.fromMap(data);
 
     return result;
   }
-
-
 }
