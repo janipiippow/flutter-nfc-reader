@@ -1,6 +1,7 @@
 package it.matteocrippa.flutternfcreader
 
 import android.Manifest
+import android.annotation.TargetApi
 import android.content.Context
 import android.content.Intent
 import android.nfc.*
@@ -17,6 +18,8 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import java.nio.charset.Charset
 import android.os.Looper
 import java.io.IOException
+import java.math.BigInteger
+import java.nio.charset.StandardCharsets
 
 
 const val PERMISSION_NFC = 1007
@@ -132,8 +135,6 @@ class FlutterNfcReaderPlugin(val registrar: Registrar) : MethodCallHandler, Even
     }
 
 
-
-
     override fun onMethodCall(call: MethodCall, result: Result): Unit {
 
         when (call.method) {
@@ -207,9 +208,12 @@ class FlutterNfcReaderPlugin(val registrar: Registrar) : MethodCallHandler, Even
             // convert tag to NDEF tag
             val ndef = Ndef.get(tag)
             ndef?.connect()
-            val ndefMessage = ndef?.ndefMessage ?: ndef?.cachedNdefMessage
-            val message = ndefMessage?.toByteArray()
-                    ?.toString(Charset.forName("UTF-8")) ?: ""
+            val ndefMessage : NdefMessage? = ndef?.ndefMessage?: ndef?.cachedNdefMessage
+
+            val message = formatNDEFMessageToResult(ndef, ndefMessage)
+
+            //val message = ndefMessage?.toByteArray()
+            //        ?.toString(Charset.forName("UTF-8")) ?: ""
             //val id = tag?.id?.toString(Charset.forName("ISO-8859-1")) ?: ""
             val id = bytesToHexString(tag?.id) ?: ""
             ndef?.close()
@@ -225,6 +229,32 @@ class FlutterNfcReaderPlugin(val registrar: Registrar) : MethodCallHandler, Even
         }
 
     }
+
+    @TargetApi(Build.VERSION_CODES.KITKAT)
+    private fun formatNDEFMessageToResult(ndef: Ndef, message: NdefMessage?): Map<String, Any> {
+        val result = HashMap<String, Any>()
+        val records = ArrayList<HashMap<String, String>>()
+        if(message != null) {
+            for (record in message.getRecords()) {
+                val recordMap = HashMap<String, String>()
+                recordMap.put("payload", String(record.getPayload(), StandardCharsets.UTF_8))
+                recordMap.put("id", String(record.getId(), StandardCharsets.UTF_8))
+                recordMap.put("type", String(record.getType(), StandardCharsets.UTF_8))
+                // recordMap.put("tnf",  String.valueOf(record.getTnf()))
+                records.add(recordMap)
+            }
+            val idByteArray = ndef.getTag().getId()
+            // Fancy string formatting snippet is from
+            // https://gist.github.com/luixal/5768921#gistcomment-1788815
+            result.put("id", String.format("%0" + idByteArray.size * 2 + "X", BigInteger(1, idByteArray)))
+            result.put("message_type", "ndef")
+            result.put("type", ndef.getType())
+            result.put("records", records)
+        }
+
+        return result
+    }
+
 
     private fun bytesToHexString(src: ByteArray?): String? {
         val stringBuilder = StringBuilder("0x")
