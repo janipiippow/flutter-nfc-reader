@@ -37,7 +37,7 @@ class FlutterNfcReaderPlugin(val registrar: Registrar) : MethodCallHandler, Even
     private var kError = "nfcError"
     private var kStatus = "nfcStatus"
     private var kWrite = ""
-    private var kPath = ""
+    // private var kPath = ""
     private var readResult :Result? = null
     private var writeResult :Result? = null
 
@@ -118,14 +118,14 @@ class FlutterNfcReaderPlugin(val registrar: Registrar) : MethodCallHandler, Even
 
         } catch (e: Exception) {
             //Write operation has failed
+            throw e
         }
-        return false
     }
 
     fun createNFCMessage(payload: String?, intent: Intent?) : Boolean {
 
         val pathPrefix = "it.matteocrippa.flutternfcreader"
-        val nfcRecord = NdefRecord(NdefRecord.TNF_EXTERNAL_TYPE, pathPrefix.toByteArray(), ByteArray(0), (payload as String).toByteArray())
+        val nfcRecord = NdefRecord(NdefRecord.TNF_WELL_KNOWN, NdefRecord.RTD_TEXT, ByteArray(0), (payload as String).toByteArray())
         val nfcMessage = NdefMessage(arrayOf(nfcRecord))
         intent?.let {
             val tag = it.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG)
@@ -161,8 +161,8 @@ class FlutterNfcReaderPlugin(val registrar: Registrar) : MethodCallHandler, Even
                     return
                 }else {
                     writeResult = result
-                    kWrite = call.argument("label")!!
-                    kPath = call.argument("path")!!
+                    kWrite = call.argument("message")!!
+                   // kPath = call.argument("path")!!
                 }
 
 
@@ -191,25 +191,51 @@ class FlutterNfcReaderPlugin(val registrar: Registrar) : MethodCallHandler, Even
 
     // handle discovered NDEF Tags
     override fun onTagDiscovered(tag: Tag?) {
+        val ndef = Ndef.get(tag)
+
         if(writeResult!=null){
-            val nfcRecord = NdefRecord(NdefRecord.TNF_EXTERNAL_TYPE, kPath.toByteArray(), ByteArray(0), kWrite.toByteArray())
-            val nfcMessage = NdefMessage(arrayOf(nfcRecord))
-            writeMessageToTag(nfcMessage, tag)
-            val data = mapOf(kId to "", kContent to kWrite, kError to "", kStatus to "write")
+            
+
+            // Public constructors <init>(tnf: Short, type: ByteArray!, id: ByteArray!, payload: ByteArray!)
+            val nfcRecord = NdefRecord(NdefRecord.TNF_WELL_KNOWN, NdefRecord.RTD_TEXT, ByteArray(0), kWrite.toByteArray())
+            val ndefMessage = NdefMessage(arrayOf(nfcRecord))
+
+           // val records = ndefMessage?.getRecords()
+            //if (records != null) {
+            //    var newRecords = records.plus(NdefRecord(NdefRecord.TNF_EXTERNAL_TYPE, ByteArray(0), ByteArray(0), kWrite.toByteArray()))
+            
+             //   val nfcMessage  = NdefMessage(newRecords)
+
+            var data = mapOf(kId to "", kContent to null, kError to "", kStatus to "writing") as Map<String, Any>
+            val success = writeMessageToTag(ndefMessage, tag)
+            if (success) {
+                ndef?.connect()
+                val message = formatNDEFMessageToResult(ndef, ndefMessage)
+                ndef?.close()
+                data = mapOf(kId to "", kContent to message, kError to "", kStatus to "wrote")
+            } else {
+                data = mapOf(kId to "", kContent to null, kError to "Write failed", kStatus to "error") as Map<String, Any>
+
+            } 
+
             val mainHandler = Handler(Looper.getMainLooper())
             mainHandler.post {
                 writeResult?.success(data)
                 writeResult=null;
             }
+            
+            //}
+            
         }
        /* */
 
         if(readResult!=null){
             // convert tag to NDEF tag
-            val ndef = Ndef.get(tag)
             ndef?.connect()
-            val ndefMessage : NdefMessage? = ndef?.ndefMessage?: ndef?.cachedNdefMessage
 
+            
+            val ndefMessage : NdefMessage? = ndef?.ndefMessage?: ndef?.cachedNdefMessage
+           
             val message = formatNDEFMessageToResult(ndef, ndefMessage)
 
             //val message = ndefMessage?.toByteArray()

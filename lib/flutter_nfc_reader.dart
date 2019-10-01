@@ -2,13 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
-enum NFCStatus {
-  none,
-  reading,
-  read,
-  stopped,
-  error,
-}
+enum NFCStatus { none, reading, read, stopped, error, writing }
 
 enum MessageType {
   NDEF,
@@ -48,6 +42,14 @@ class NDEFMessage implements NFCMessage {
         type: data['type'],
         records: records.map((record) => NDEFRecord.fromData(record)).toList());
   }
+
+  Map<String, dynamic> toMap() {
+    var map = Map<String, dynamic>();
+    map["id"] = id;
+    map['type'] = type;
+    map['records'] = records.map((record) => record.toMap()).toList();
+    return map;
+  }
 }
 
 class NDEFRecord {
@@ -66,6 +68,15 @@ class NDEFRecord {
         type: data['type'],
         payload: data['payload'],
         tnf: data['tnf']);
+  }
+
+  Map<String, dynamic> toMap() {
+    var map = Map<String, dynamic>();
+    map['id'] = id;
+    map['type'] = type;
+    map["tnf"] = tnf;
+    map['payload'] = payload;
+    return map;
   }
 }
 
@@ -97,6 +108,9 @@ class NfcData {
         break;
       case 'reading':
         result.status = NFCStatus.reading;
+        break;
+      case 'writing':
+        result.status = NFCStatus.writing;
         break;
       case 'stopped':
         result.status = NFCStatus.stopped;
@@ -131,9 +145,9 @@ class FlutterNfcReader {
     return result;
   }
 
-  static Future<NfcData> write(String path, String label) async {
-    final Map data = await _channel.invokeMethod(
-        'NfcWrite', <String, dynamic>{'label': label, 'path': path});
+  static Future<NfcData> write(String message) async {
+    final Map data = await _channel
+        .invokeMethod('NfcWrite', <String, dynamic>{'message': message});
 
     final NfcData result = NfcData.fromMap(data);
 
